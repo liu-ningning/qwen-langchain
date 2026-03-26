@@ -61,21 +61,31 @@ Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 src/
 ├── lib/
-│   ├── qwen.ts       # Qwen API 客户端（调用 + 流式解析）
-│   ├── tools.ts      # 工具定义与模拟执行器
-│   └── rag.ts        # RAG 知识库与相似度检索
+│   ├── qwen.ts               # Qwen API 客户端（调用 + 流式解析）
+│   ├── tools.ts              # 工具定义与模拟执行器
+│   └── rag.ts                # RAG 知识库与相似度检索
 ├── hooks/
-│   └── useQwen.ts    # 统一 API 调用 Hook
+│   └── useQwen.ts            # 统一 API 调用 Hook
 ├── components/
-│   ├── ui.tsx        # 通用 UI 组件库
-│   ├── LCELPanel.tsx
-│   ├── ParsersPanel.tsx
-│   ├── AgentPanel.tsx
-│   ├── StateGraphPanel.tsx
-│   ├── MemoryPanel.tsx
-│   ├── RAGPanel.tsx
-│   ├── HITLPanel.tsx
-│   ├── FallbackPanel.tsx
-│   └── StreamPanel.tsx
-└── App.tsx           # 主布局 + 导航
+│   ├── ui.tsx                # 通用 UI 组件库
+│   ├── LCELPanel.tsx         # LCEL 管道链
+│   ├── ParsersPanel.tsx      # Output Parsers
+│   ├── AgentPanel.tsx        # createAgent
+│   ├── StateGraphPanel.tsx   # StateGraph
+│   ├── MemoryPanel.tsx       # 短期记忆
+│   ├── RAGPanel.tsx          # RAG检索
+│   ├── HITLPanel.tsx         # Human-in-Loop
+│   ├── FallbackPanel.tsx     #  执行容错链
+│   └── StreamPanel.tsx       # 流式输出 SSE
+├── public/
+│   ├── demo1.png             # 演示图1
+│   └── demo2.png             # 演示图2
+├── .eslintrc.cjs             # ESLint 配置文件
+├── .gitignore                # Git 忽略配置文件
+├── index.html                # HTML 入口文件
+├── package.json              # 项目依赖与脚本
+├── package-lock.json         # 项目依赖锁定文件
+├── tsconfig.json             # TypeScript 配置文件
+├── vite.config.ts            # Vite 构建配置文件
+└── App.tsx                   # 主布局 + 导航
 ```
