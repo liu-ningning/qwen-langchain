@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { callQwen } from "../lib/qwen"
 import type { Message } from "../lib/qwen"
-import { Btn, FieldLabel, Input, Tag, PanelHeader, Spinner } from "./ui"
+import { Btn, Input, Tag, PanelHeader, Spinner } from "./ui"
 
 interface ChatMsg {
   role: "user" | "assistant"

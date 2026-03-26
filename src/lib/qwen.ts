@@ -91,7 +91,20 @@ export async function callQwen(apiKey: string, opts: ChatOptions): Promise<ChatR
     throw new Error(err.error?.message ?? `HTTP ${res.status}`)
   }
 
-  return res.json() as Promise<ChatResponse>
+  // return res.json() as Promise<ChatResponse>
+
+  const json: any = (await res.json()) as ChatResponse
+
+  if (json?.usage) {
+    console.warn('#####'.repeat(10))
+    console.warn(`***** 模型: ${json?.model || opts.model}`)
+    console.warn(`***** 总耗: ${json?.usage.total_tokens} tokens`)
+    console.warn(`***** 输入: ${json?.usage.prompt_tokens} tokens`)
+    console.warn(`***** 输出: ${json?.usage.completion_tokens} tokens`)
+    console.warn('#####'.repeat(10))
+  }
+
+  return json
 }
 
 // Streaming call — returns raw Response for SSE parsing

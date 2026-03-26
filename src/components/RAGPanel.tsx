@@ -17,7 +17,6 @@ import {
   SplitLayout,
   Col,
   Row,
-  Sep,
   Spinner,
 } from "./ui"
 

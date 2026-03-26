@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { callQwen } from "../lib/qwen"
-import { QWEN_MODELS } from "../lib/qwen"
 import {
   Card,
   CardHead,
@@ -64,7 +63,6 @@ const STATUS_STYLE: Record<
 
 export default function FallbackPanel({
   apiKey,
-  model,
 }: {
   apiKey: string
   model: string

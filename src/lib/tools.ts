@@ -111,7 +111,6 @@ export function executeTool(name: string, input: ToolInput): string {
       try {
         // Safe eval: only allow math chars
         const expr = String(input.expression).replace(/[^0-9+\-*/().\s]/g, '')
-        // eslint-disable-next-line no-new-func
         const result = new Function(`"use strict"; return (${expr})`)() as number
         return `${input.expression} = ${result}`
       } catch {
