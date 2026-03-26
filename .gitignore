@@ -37,3 +37,6 @@ dist
 
 # git
 .gitpat
+
+# other
+.qwen-api-key

@@ -121,7 +121,7 @@ export default function App() {
         <div>
           <div
             style={{
-              fontFamily: "var(--sans)",
+              fontFamily: "var(--display)",
               fontWeight: 800,
               fontSize: 16,
               letterSpacing: "-0.3px",
@@ -130,7 +130,7 @@ export default function App() {
               WebkitTextFillColor: "transparent",
             }}
           >
-            千问 · LangChain Demo
+            Qwen · LangChain Demo
           </div>
           <div
             style={{
