@@ -1,12 +1,17 @@
-# 千问 · LangChain 知识点演示台
+# Qwen · LangChain 知识点演示台
 
 基于阿里云千问（Qwen）API 的 LangChain 核心知识点交互演示项目。
+
+## 项目示例图
+
+![Demo 1](./public/demo1.png)
+![Demo 2](./public/demo2.png)
 
 ## 技术栈
 
 - **React 18** + **TypeScript**
 - **Vite 5** 构建工具
-- **千问 API**（兼容 OpenAI 接口）
+- **Qwen API**（兼容 OpenAI 接口）
 
 ## 快速启动
 
@@ -19,6 +24,9 @@ npm run dev
 
 # 打包
 npm run build
+
+# eslint 检测
+npm run eslint
 ```
 
 ## 获取 API Key
@@ -39,9 +47,9 @@ npm run build
 | H · 容错链         | 补充E     | 多级备用模型，模拟限流场景          |
 | I · 流式输出       | 阶段二    | SSE 打字机效果，三种 streamMode     |
 
-## 千问 API 说明
+## Qwen API 说明
 
-千问 API 完全兼容 OpenAI Chat Completions 格式：
+Qwen API 完全兼容 OpenAI Chat Completions 格式：
 
 ```
 Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
@@ -53,7 +61,7 @@ Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 src/
 ├── lib/
-│   ├── qwen.ts       # 千问 API 客户端（调用 + 流式解析）
+│   ├── qwen.ts       # Qwen API 客户端（调用 + 流式解析）
 │   ├── tools.ts      # 工具定义与模拟执行器
 │   └── rag.ts        # RAG 知识库与相似度检索
 ├── hooks/
