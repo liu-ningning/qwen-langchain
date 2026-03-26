@@ -252,7 +252,6 @@ export default function App() {
                       width: "100%",
                       padding: "8px 16px",
                       cursor: "pointer",
-                      background: "none",
                       border: "none",
                       borderLeft: `2px solid ${active === item.id ? "var(--accent)" : "transparent"}`,
                       background:
