@@ -133,7 +133,7 @@ export default function AgentPanel({
           )
 
           await new Promise((r) => setTimeout(r, 350))
-          const result = executeTool(call.function.name, args)
+          const result = await executeTool(call.function.name, args)
           setToolStatus(call.function.name, "done", result)
 
           addLog(

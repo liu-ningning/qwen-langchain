@@ -28,7 +28,7 @@ export const AGENT_TOOLS: Tool[] = [
     type: 'function',
     function: {
       name: 'get_weather',
-      description: '查询中国城市的模拟天气信息，支持北京、上海、广州、深圳、杭州。',
+      description: '查询指定城市的实时天气信息。',
       parameters: {
         type: 'object',
         properties: {
@@ -105,7 +105,7 @@ export const HIGH_RISK_TOOLS = new Set(['delete_data', 'send_email'])
 // ── Tool Executors (local simulation) ──────────────────────
 type ToolInput = Record<string, unknown>
 
-export function executeTool(name: string, input: ToolInput): string {
+export async function executeTool(name: string, input: ToolInput): Promise<string> {
   switch (name) {
     case 'calculator': {
       try {
@@ -122,14 +122,61 @@ export function executeTool(name: string, input: ToolInput): string {
     }
     case 'get_weather': {
       const city = String(input.city)
-      const data: Record<string, string> = {
-        北京: '晴天，温度 22°C，微风，空气质量良',
-        上海: '多云，温度 26°C，东南风 3 级，湿度 72%',
-        广州: '阵雨，温度 30°C，雷阵雨预警，湿度 85%',
-        深圳: '晴间多云，温度 28°C，东风 2 级',
-        杭州: '小雨，温度 20°C，东北风 2 级',
+      const WMO_CODES: Record<number, string> = {
+        0: '晴朗', 1: '多云', 2: '多云', 3: '阴天',
+        45: '雾', 48: '雾', 51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨',
+        61: '小雨', 63: '中雨', 65: '大雨', 71: '小雪', 73: '中雪', 75: '大雪',
+        80: '阵雨', 81: '阵雨', 82: '阵雨', 95: '雷雨', 96: '雷雨', 99: '雷雨',
       }
-      return data[city] ?? `暂无「${city}」的天气数据，支持：北京、上海、广州、深圳、杭州`
+
+      let coords: { latitude: number; longitude: number } | null = null
+
+      try {
+        // 获取城市经纬度
+        // 第一次尝试原地名搜索
+        let resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=zh`)
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data.results && data.results.length > 0) {
+            coords = data.results[0]
+          }
+        }
+
+        // 针对中文地名优化：如果是不带后缀的城市名，补充“市”以提高精准度
+        let searchCity = city
+        if (!/市|省|区|县|州|岛/.test(searchCity)) {
+          searchCity += '市'
+        }
+
+        if (!coords) {
+          resp = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchCity)}&count=1&language=zh`)
+          if (resp.ok) {
+            const data = await resp.json()
+            if (data.results && data.results.length > 0) {
+              coords = data.results[0]
+            }
+          }
+        }
+
+        if (!coords || !coords.latitude || !coords.longitude) {
+          return `无法获取「${city}」的实时天气，未找到该城市的地理位置。`
+        }
+
+        // 获取天气信息
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current_weather=true`)
+        if (res.ok) {
+          const data = await res.json()
+          const current = data.current_weather
+          const units = data.current_weather_units
+          if (current) {
+            const condition = WMO_CODES[current.weathercode] || '未知'
+            return `「${city}」实时天气：${condition}，温度 ${current.temperature}${units.temperature}，风速 ${current.windspeed}${units.windspeed}，风向 ${current.winddirection}${units.winddirection}`
+          }
+        }
+        throw new Error('API请求失败')
+      } catch {
+        return `无法获取「${city}」的实时天气，接口暂不可用。`
+      }
     }
     case 'search_knowledge': {
       const q = String(input.query).toLowerCase()

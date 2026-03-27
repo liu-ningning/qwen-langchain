@@ -217,7 +217,7 @@ export default function StateGraphPanel({
             /* ignore */
           }
           await new Promise((r) => setTimeout(r, 300))
-          const result = executeTool(call.function.name, args)
+          const result = await executeTool(call.function.name, args)
           addLog(
             <span>
               <span style={{ color: "var(--amber)" }}>

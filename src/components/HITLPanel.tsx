@@ -126,7 +126,7 @@ export default function HITLPanel({
             </span>,
           )
         } else {
-          const result = executeTool(call.function.name, args)
+          const result = await executeTool(call.function.name, args)
           addLog(
             <span style={{ color: "var(--accent)" }}>
               ✅ 自动执行: {call.function.name} → {result}
@@ -168,7 +168,7 @@ export default function HITLPanel({
 
     let result: string
     if (approved) {
-      result = executeTool(call.name, call.args)
+      result = await executeTool(call.name, call.args)
       addLog(
         <span style={{ color: "var(--green)" }}>
           ✅ 已批准: {call.name} → {result}
