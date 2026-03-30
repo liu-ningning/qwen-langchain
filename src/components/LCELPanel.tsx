@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQwen } from "../hooks/useQwen"
+import { runLCELChain } from "../lib/qwen"
 import {
   Card,
   CardHead,
@@ -80,13 +80,13 @@ function PipeNode({
 }
 
 export default function LCELPanel({
-  apiKey,
   model,
 }: {
   apiKey: string
   model: string
 }) {
-  const { run, status, error } = useQwen(apiKey, model)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [template, setTemplate] = useState(
     "你是一个{role}，请用{style}风格，用一句话介绍：{topic}",
   )
@@ -108,58 +108,56 @@ export default function LCELPanel({
   }
 
   const runChain = async () => {
-    const prompt = template
-      .replace(/{role}/g, role)
-      .replace(/{style}/g, style)
-      .replace(/{topic}/g, topic)
+    setLoading(true)
+    setError(null)
     setOutput("")
     setMeta("")
-    setMode("StringOutputParser")
 
     await animate(async () => {
-      const t0 = Date.now()
-      const res = await run({
-        messages: [{ role: "user", content: prompt }],
-        maxTokens: 300,
-      })
-      if (!res) return
-      const text = res.choices[0].message.content // ← StringOutputParser
-      setOutput(text)
-      setMeta(
-        `⏱ ${Date.now() - t0}ms  ·  输入 ${res.usage.prompt_tokens} tokens  ·  输出 ${res.usage.completion_tokens} tokens`,
-      )
+      try {
+        const res = await runLCELChain({
+          model,
+          template,
+          role,
+          style,
+          topic,
+          mode: "string",
+        })
+        setMode(res.mode)
+        setOutput(res.output)
+        setMeta(`⏱ ${res.elapsedMs}ms  ·  服务端 LangChain 链执行完成`)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
+      }
     })
+    setLoading(false)
   }
 
   const runParallel = async () => {
+    setLoading(true)
+    setError(null)
     setOutput("⇉ 并行执行两条链...\n")
     setMeta("")
-    setMode("RunnableParallel")
     setStep(1)
 
-    const [r1, r2] = await Promise.all([
-      run({
-        messages: [
-          { role: "user", content: `用一句轻松幽默的话介绍：${topic}` },
-        ],
-        maxTokens: 150,
-      }),
-      run({
-        messages: [
-          { role: "user", content: `用一句严肃专业的话介绍：${topic}` },
-        ],
-        maxTokens: 150,
-      }),
-    ])
+    try {
+      const res = await runLCELChain({
+        model,
+        template,
+        role,
+        style,
+        topic,
+        mode: "parallel",
+      })
+      setMode(res.mode)
+      setOutput(res.output)
+      setMeta(`⏱ ${res.elapsedMs}ms  ·  服务端并行链执行完成`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
     setStep(-1)
-    if (!r1 || !r2) return
-    setOutput(
-      `▸ 分支1（幽默风格）:\n${r1.choices[0].message.content}\n\n` +
-        `▸ 分支2（专业风格）:\n${r2.choices[0].message.content}`,
-    )
+    setLoading(false)
   }
-
-  const loading = status === "loading"
 
   return (
     <div

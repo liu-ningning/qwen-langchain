@@ -1,8 +1,7 @@
 // ── Qwen API Client ──────────────────────────────────────────
-// 千问兼容 OpenAI Chat Completions 接口
-// Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+// 前端统一调用本地 API 服务，再由服务端持有 Qwen 凭据并访问 DashScope。
 
-export const QWEN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+export const QWEN_BASE_URL = '/api'
 
 export const QWEN_MODELS = [
   { id: 'qwen-plus-latest', label: 'Qwen Plus', desc: '均衡性价比' },
@@ -61,7 +60,7 @@ export interface ChatResponse {
 }
 
 // Non-streaming call
-export async function callQwen(apiKey: string, opts: ChatOptions): Promise<ChatResponse> {
+export async function callQwen(_apiKey: string, opts: ChatOptions): Promise<ChatResponse> {
   const messages: Message[] = []
   if (opts.system) {
     messages.push({ role: 'system', content: opts.system })
@@ -81,7 +80,6 @@ export async function callQwen(apiKey: string, opts: ChatOptions): Promise<ChatR
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
   })
@@ -108,16 +106,15 @@ export async function callQwen(apiKey: string, opts: ChatOptions): Promise<ChatR
 }
 
 // Streaming call — returns raw Response for SSE parsing
-export async function callQwenStream(apiKey: string, opts: ChatOptions): Promise<Response> {
+export async function callQwenStream(_apiKey: string, opts: ChatOptions): Promise<Response> {
   const messages: Message[] = []
   if (opts.system) messages.push({ role: 'system', content: opts.system })
   messages.push(...opts.messages)
 
-  const res = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
+  const res = await fetch(`${QWEN_BASE_URL}/chat/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: opts.model ?? 'qwen-plus-latest',
@@ -134,6 +131,43 @@ export async function callQwenStream(apiKey: string, opts: ChatOptions): Promise
     throw new Error(err.error?.message ?? `HTTP ${res.status}`)
   }
   return res
+}
+
+export async function runLCELChain(input: {
+  model: string
+  template: string
+  role: string
+  style: string
+  topic: string
+  mode: 'string' | 'parallel'
+}): Promise<{ mode: string; output: string; elapsedMs: number }> {
+  const res = await fetch(`${QWEN_BASE_URL}/langchain/lcel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(err.error ?? `HTTP ${res.status}`)
+  }
+  return res.json() as Promise<{ mode: string; output: string; elapsedMs: number }>
+}
+
+export async function runParserChain(input: {
+  model: string
+  type: 'string' | 'json' | 'list'
+  input: string
+}): Promise<{ raw: string; parsed: string }> {
+  const res = await fetch(`${QWEN_BASE_URL}/langchain/parser`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(err.error ?? `HTTP ${res.status}`)
+  }
+  return res.json() as Promise<{ raw: string; parsed: string }>
 }
 
 // Parse a streaming response — yields text chunks

@@ -2,6 +2,20 @@
 
 基于阿里云千问（Qwen）API 的 LangChain 核心知识点交互演示项目。
 
+单端口运行的真实工程骨架：
+
+- 前端：React + TypeScript + Vite
+- 后端：Express + TypeScript
+- 模型调用：服务端持有 `QWEN_API_KEY`
+- LangChain：`LCEL` 与 `Output Parsers` 已改为服务端真实执行
+- 兼容迁移：其余面板先通过服务端代理 DashScope，避免浏览器暴露密钥
+- 开发体验：前端自动刷新，服务端代码修改自动重启
+
+开发态行为：
+
+- 修改 `src/` 下前端代码：页面通过 Vite HMR 自动刷新
+- 修改 `server/` 或 `.env`：Node 进程自动重启
+
 ## 项目示例图
 
 ![Demo 1](./public/demo1.png)
@@ -11,27 +25,46 @@
 
 - **React 18** + **TypeScript**
 - **Vite 5** 构建工具
+- **Express** 服务端
+- **LangChain** 运行时
 - **Qwen API**（兼容 OpenAI 接口）
 
 ## 快速启动
 
 ```bash
 # 安装依赖
-npm install
+pnpm install
 
-# 启动开发服务器
-npm run dev
+# 配置服务端环境变量
+cp .env.example .env
+
+# 启动项目（前后端同端口）
+pnpm dev
 
 # 打包
-npm run build
+pnpm build
 
 # eslint 检测
-npm run eslint
+pnpm eslint
 ```
 
-## 获取 API Key
+## 访问
 
-访问 [阿里云 DashScope 控制台](https://dashscope.console.aliyun.com/apiKey) 获取 API Key。
+```bash
+http://localhost:5173
+```
+
+## 配置 API Key
+
+访问 [阿里云 DashScope 控制台](https://dashscope.console.aliyun.com/apiKey) 获取 API Key，并写入 `.env`：
+
+```bash
+QWEN_API_KEY=your_dashscope_api_key
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+PORT=5173
+```
+
+前端不再直接保存或发送 API Key。
 
 ## 演示模块
 
@@ -59,9 +92,18 @@ Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
 ## 项目结构
 
 ```
+server/
+├── index.ts                 # Express API + LangChain runtime
+├── lib/
+│   └── runtime.ts           # 服务端运行时配置与模型工厂
+├── routes/
+│   ├── api.ts               # API 路由汇总
+│   ├── chat.ts              # Chat / SSE 代理路由
+│   ├── health.ts            # 健康检查路由
+│   └── langchain.ts         # LangChain 相关路由
 src/
 ├── lib/
-│   ├── qwen.ts               # Qwen API 客户端（调用 + 流式解析）
+│   ├── qwen.ts               # 前端 API 客户端（调用本地 /api）
 │   ├── tools.ts              # 工具定义与模拟执行器
 │   └── rag.ts                # RAG 知识库与相似度检索
 ├── hooks/
@@ -80,11 +122,12 @@ src/
 ├── public/
 │   ├── demo1.png             # 演示图1
 │   └── demo2.png             # 演示图2
-├── .eslintrc.cjs             # ESLint 配置文件
+├── .env.example              # 服务端环境变量模板
 ├── .gitignore                # Git 忽略配置文件
 ├── index.html                # HTML 入口文件
 ├── package.json              # 项目依赖与脚本
-├── package-lock.json         # 项目依赖锁定文件
+├── pnpm-lock.yaml            # pnpm 依赖锁定文件
+├── tsconfig.server.json      # 后端 TypeScript 配置
 ├── tsconfig.json             # TypeScript 配置文件
 ├── vite.config.ts            # Vite 构建配置文件
 └── App.tsx                   # 主布局 + 导航

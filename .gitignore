@@ -2,6 +2,7 @@
 logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 
 # Runtime data
 pids
@@ -17,11 +18,12 @@ node_modules
 
 # Optional npm cache directory
 .npm
+.pnpm-store
 
 # Optional eslint cache
 .eslintcache
 
-# Output of 'npm pack'
+# Output of package manager pack
 *.tgz
 
 # Aapple
@@ -33,10 +35,11 @@ node_modules
 # build
 build
 dist
+dist-server
 !build/dll
 
 # git
 .gitpat
 
 # other
-.qwen-api-key
+.env

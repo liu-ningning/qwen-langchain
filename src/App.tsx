@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { QWEN_MODELS } from "./lib/qwen"
 import LCELPanel from "./components/LCELPanel"
 import ParsersPanel from "./components/ParsersPanel"
@@ -87,11 +87,30 @@ const NAV: NavItem[] = [
 const SECTIONS = [...new Set(NAV.map((n) => n.section))]
 
 export default function App() {
-  const [apiKey, setApiKey] = useState("")
+  const [backendReady, setBackendReady] = useState(false)
   const [model, setModel] = useState("qwen-plus-latest")
   const [active, setActive] = useState<PanelId>("lcel")
 
-  const keyOk = apiKey.trim().length > 10
+  useEffect(() => {
+    let cancelled = false
+
+    async function checkHealth() {
+      try {
+        const res = await fetch("/api/health")
+        const data = (await res.json()) as { hasApiKey?: boolean }
+        if (!cancelled) setBackendReady(Boolean(data.hasApiKey))
+      } catch {
+        if (!cancelled) setBackendReady(false)
+      }
+    }
+
+    void checkHealth()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const apiKey = backendReady ? "server-managed" : ""
 
   return (
     <div
@@ -139,7 +158,7 @@ export default function App() {
               fontFamily: "var(--mono)",
             }}
           >
-            Qwen API · OpenAI-Compatible · React + TypeScript
+            Server API · LangChain Runtime · React + TypeScript
           </div>
         </div>
 
@@ -174,38 +193,35 @@ export default function App() {
             ))}
           </select>
 
-          {/* Status dot */}
+          {/* Runtime status */}
           <div
             style={{
               width: 8,
               height: 8,
               borderRadius: "50%",
               flexShrink: 0,
-              background: keyOk ? "var(--green)" : "var(--text3)",
-              boxShadow: keyOk ? "0 0 8px var(--green)" : "none",
+              background: backendReady ? "var(--green)" : "var(--text3)",
+              boxShadow: backendReady ? "0 0 8px var(--green)" : "none",
               transition: "all .3s",
             }}
           />
 
-          {/* API Key input */}
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="输入阿里云 DashScope API Key (sk-...)"
+          <div
             style={{
               background: "var(--surface2)",
-              border: `1px solid ${keyOk ? "var(--green)" : "var(--border2)"}`,
+              border: `1px solid ${backendReady ? "var(--green)" : "var(--border2)"}`,
               borderRadius: 7,
               padding: "6px 12px",
               color: "var(--text)",
               fontFamily: "var(--mono)",
               fontSize: 12,
-              width: 290,
-              outline: "none",
-              transition: "border-color .2s",
+              minWidth: 280,
             }}
-          />
+          >
+            {backendReady
+              ? "Server runtime ready · QWEN_API_KEY 已配置"
+              : "等待后端配置 QWEN_API_KEY"}
+          </div>
         </div>
       </header>
 
@@ -334,7 +350,7 @@ export default function App() {
           }}
         >
           {/* API key prompt */}
-          {!keyOk && (
+          {!backendReady && (
             <div
               style={{
                 padding: "10px 20px",
@@ -349,16 +365,7 @@ export default function App() {
               }}
             >
               <span>⚠</span>
-              请在右上角输入阿里云 DashScope API Key，访问
-              <a
-                href="https://dashscope.console.aliyun.com/apiKey"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "var(--accent)", textDecoration: "underline" }}
-              >
-                dashscope.console.aliyun.com
-              </a>
-              获取。
+              请在服务端环境变量中配置 `QWEN_API_KEY`，然后启动 `npm run dev`。
             </div>
           )}
 

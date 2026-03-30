@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { callQwen } from "../lib/qwen"
+import { runParserChain } from "../lib/qwen"
 import {
   Card,
   CardHead,
@@ -100,19 +100,18 @@ export default function ParsersPanel({
     setParsed("")
     setParseError("")
 
-    const prompt = buildPrompt(type, input)
     try {
-      const res = await callQwen(apiKey, {
-        messages: [{ role: "user", content: prompt }],
+      const res = await runParserChain({
         model,
-        maxTokens: 400,
-        temperature: 0,
+        type,
+        input,
       })
-      const raw = res.choices[0].message.content
-      setRawOutput(raw)
-      const { result, error } = parseOutput(type, raw)
-      setParsed(result)
-      if (error) setParseError(error)
+      setRawOutput(res.raw)
+      setParsed(res.parsed)
+      if (type !== "string") {
+        const localCheck = parseOutput(type, res.raw)
+        if (localCheck.error) setParseError(localCheck.error)
+      }
     } catch (e) {
       setRawOutput(`错误: ${e instanceof Error ? e.message : String(e)}`)
     }
