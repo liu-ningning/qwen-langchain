@@ -19,7 +19,6 @@ const lcelSchema = z.object({
 lcelRouter.post("/lcel", async (req, res) => {
   try {
     const input = lcelSchema.parse(req.body)
-    console.warn('[lcel] input', input)
     const t0 = Date.now()
 
     if (input.mode === "parallel") {
