@@ -59,6 +59,29 @@ export interface ChatResponse {
   usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }
 }
 
+export interface SessionMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
+export interface StoredSession {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messages: SessionMessage[]
+}
+
+export interface SessionSummary {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+  messageCount: number
+}
+
 // Non-streaming call
 export async function callQwen(_apiKey: string, opts: ChatOptions): Promise<ChatResponse> {
   const messages: Message[] = []
@@ -168,6 +191,63 @@ export async function runParserChain(input: {
     throw new Error(err.error ?? `HTTP ${res.status}`)
   }
   return res.json() as Promise<{ raw: string; parsed: string }>
+}
+
+export async function listStoredSessions(): Promise<SessionSummary[]> {
+  const res = await fetch(`${QWEN_BASE_URL}/sessions`)
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = (await res.json()) as { sessions: SessionSummary[] }
+  return json.sessions
+}
+
+export async function createStoredSession(title?: string): Promise<StoredSession> {
+  const res = await fetch(`${QWEN_BASE_URL}/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(title ? { title } : {}),
+  })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = (await res.json()) as { session: StoredSession }
+  return json.session
+}
+
+export async function getStoredSession(sessionId: string): Promise<StoredSession> {
+  const res = await fetch(`${QWEN_BASE_URL}/sessions/${sessionId}`)
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const json = (await res.json()) as { session: StoredSession }
+  return json.session
+}
+
+export async function replyToStoredSession(input: {
+  sessionId: string
+  message: string
+  model: string
+}): Promise<StoredSession> {
+  const res = await fetch(`${QWEN_BASE_URL}/sessions/${input.sessionId}/reply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: input.message,
+      model: input.model,
+    }),
+  })
+  const json = (await res.json().catch(() => ({}))) as {
+    session?: StoredSession
+    error?: string
+  }
+  if (!res.ok && !json.session) {
+    throw new Error(json.error ?? `HTTP ${res.status}`)
+  }
+  if (!json.session) {
+    throw new Error("Session response missing")
+  }
+  return json.session
 }
 
 // Parse a streaming response — yields text chunks
