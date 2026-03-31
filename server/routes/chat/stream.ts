@@ -15,8 +15,6 @@ streamRouter.post("/stream", async (req, res) => {
       body: JSON.stringify({ ...req.body, stream: true }),
     })
 
-    console.warn('upstream', upstream)
-
     if (!upstream.ok || !upstream.body) {
       const text = await upstream.text()
       res.status(upstream.status).send(text)

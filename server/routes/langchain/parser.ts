@@ -19,6 +19,7 @@ const parserSchema = z.object({
 parserRouter.post("/parser", async (req, res) => {
   try {
     const body = parserSchema.parse(req.body)
+    console.warn('[parser] body', body)
     const model = createModel(body.model, 0)
 
     if (body.type === "string") {
