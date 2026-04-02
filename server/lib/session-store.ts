@@ -49,7 +49,12 @@ async function ensureStoreFile() {
 async function readStore(): Promise<SessionStoreData> {
   await ensureStoreFile()
   const raw = await readFile(sessionFile, "utf8")
-  return JSON.parse(raw) as SessionStoreData
+  try {
+    return JSON.parse(raw) as SessionStoreData
+  } catch (err) {
+    console.error('[session-store] Failed to parse session file, resetting...', err)
+    return createInitialStore()
+  }
 }
 
 async function writeStore(store: SessionStoreData) {
@@ -82,6 +87,7 @@ export async function getSession(sessionId: string) {
 }
 
 export async function createSession(title = "新会话") {
+  title = summarizeTitle(title)
   const store = await readStore()
   const now = new Date().toISOString()
   const id = `session-${String(store.nextSessionNumber).padStart(3, "0")}`
@@ -107,7 +113,10 @@ export async function appendMessage(
 ) {
   const store = await readStore()
   const session = store.sessions.find((item) => item.id === sessionId)
-  if (!session) return null
+  if (!session) return {
+    session: null,
+    error: 'Session not found'
+  }
 
   const now = new Date().toISOString()
   session.messages.push({
@@ -123,5 +132,5 @@ export async function appendMessage(
   }
 
   await writeStore(store)
-  return session
+  return { ...session }
 }
