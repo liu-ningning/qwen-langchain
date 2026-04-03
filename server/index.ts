@@ -3,8 +3,18 @@ import cors from "cors"
 import express from "express"
 import { createServer as createHttpServer } from "node:http"
 import path from "node:path"
+import pino from "pino"
 import apiRouter from "./routes/api.js"
 import { isDev, port } from "./lib/runtime.js"
+
+const logger = pino({
+  transport: isDev
+    ? {
+      target: "pino-pretty",
+      options: { colorize: true, ignore: "pid,hostname" },
+    }
+    : undefined,
+})
 
 const app = express()
 const rootDir = process.cwd()
@@ -16,7 +26,12 @@ app.use(express.json({ limit: "1mb" }))
 
 app.use((req, res, next) => {
   const start = Date.now()
-  res.on("finish", () => {
+  let logged = false
+
+  const logRequest = () => {
+    if (logged) return
+    logged = true
+
     const duration = Date.now() - start
     const methodColors: Record<string, string> = {
       GET: "\x1b[32m",
@@ -25,8 +40,25 @@ app.use((req, res, next) => {
       DELETE: "\x1b[31m",
     }
     const color = methodColors[req.method] || "\x1b[0m"
-    console.log(`${color}[${req.method}] ${req.originalUrl} - ${duration}ms \x1b[0m`)
-  })
+    setImmediate(() => {
+      const sanitizedUrl = req.originalUrl.replace(/[?&](token|password|secret)=[^&]*/g, '***')
+      if (sanitizedUrl.includes('/api/')) {
+        logger.info(
+          { method: req.method, url: sanitizedUrl, durationMs: `${duration}ms` },
+          `${color}[${req.method}]\x1b[0m ${sanitizedUrl} - ${duration}ms`
+        )
+      }
+    })
+
+    res.removeListener("finish", logRequest)
+    res.removeListener("close", logRequest)
+    res.removeListener("error", logRequest)
+  }
+
+  res.on("finish", logRequest)
+  res.on("close", logRequest)
+  res.on("error", logRequest)
+
   next()
 })
 
