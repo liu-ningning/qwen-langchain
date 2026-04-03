@@ -13,6 +13,23 @@ const httpServer = createHttpServer(app)
 
 app.use(cors())
 app.use(express.json({ limit: "1mb" }))
+
+app.use((req, res, next) => {
+  const start = Date.now()
+  res.on("finish", () => {
+    const duration = Date.now() - start
+    const methodColors: Record<string, string> = {
+      GET: "\x1b[32m",
+      POST: "\x1b[34m",
+      PUT: "\x1b[33m",
+      DELETE: "\x1b[31m",
+    }
+    const color = methodColors[req.method] || "\x1b[0m"
+    console.log(`${color}[${req.method}] ${req.originalUrl} - ${duration}ms \x1b[0m`)
+  })
+  next()
+})
+
 app.use("/api", apiRouter)
 
 async function start() {
