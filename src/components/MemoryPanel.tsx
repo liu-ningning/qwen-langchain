@@ -1,18 +1,16 @@
-import { useState, useRef, useEffect } from "react"
-import { callQwen } from "../lib/qwen"
-import type { Message } from "../lib/qwen"
-import { Btn, Input, Tag, PanelHeader, Spinner } from "./ui"
-
-interface ChatMsg {
-  role: "user" | "assistant"
-  content: string
-}
-interface Session {
-  id: string
-  messages: ChatMsg[]
-}
-
-let sessionCounter = 0
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  createStoredSession,
+  getStoredSession,
+  listStoredSessions,
+  replyToStoredSession,
+} from "../lib/qwen"
+import type {
+  SessionMessage,
+  SessionSummary,
+  StoredSession,
+} from "../lib/qwen"
+import { Btn, Input, PanelHeader, Spinner, Tag } from "./ui"
 
 export default function MemoryPanel({
   apiKey,
@@ -21,25 +19,84 @@ export default function MemoryPanel({
   apiKey: string
   model: string
 }) {
-  const [sessions, setSessions] = useState<Record<string, Session>>({})
+  const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [currentId, setCurrentId] = useState<string | null>(null)
+  const [current, setCurrent] = useState<StoredSession | null>(null)
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [booting, setBooting] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  const updateSessionSummary = useCallback((session: StoredSession) => {
+    setSessions((prev) => {
+      const next = prev.some((item) => item.id === session.id)
+        ? prev.map((item) =>
+            item.id === session.id
+              ? {
+                  ...item,
+                  title: session.title,
+                  updatedAt: session.updatedAt,
+                  messageCount: session.messages.length,
+                }
+              : item,
+          )
+        : [
+            {
+              id: session.id,
+              title: session.title,
+              createdAt: session.createdAt,
+              updatedAt: session.updatedAt,
+              messageCount: session.messages.length,
+            },
+            ...prev,
+          ]
+
+      return next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    })
+  }, [])
+
+  const loadSessions = useCallback(async () => {
+    setBooting(true)
+    try {
+      const data = await listStoredSessions()
+      setSessions(data)
+      setCurrentId((prev) => prev ?? data[0]?.id ?? null)
+    } finally {
+      setBooting(false)
+    }
+  }, [])
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    const session = await getStoredSession(sessionId)
+    setCurrent(session)
+    updateSessionSummary(session)
+  }, [updateSessionSummary])
+
+  useEffect(() => {
+    void loadSessions()
+  }, [loadSessions])
+
+  useEffect(() => {
+    if (!currentId) {
+      setCurrent(null)
+      return
+    }
+    void loadSession(currentId)
+  }, [currentId, loadSession])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [sessions, currentId])
+  }, [current, currentId, loading])
 
-  function newThread() {
-    sessionCounter++
-    const id = `session-${String(sessionCounter).padStart(3, "0")}`
-    setSessions((prev) => ({ ...prev, [id]: { id, messages: [] } }))
-    setCurrentId(id)
+  async function newThread() {
+    const session = await createStoredSession()
+    updateSessionSummary(session)
+    setCurrentId(session.id)
+    setCurrent(session)
   }
 
   function switchThread() {
-    const ids = Object.keys(sessions)
+    const ids = sessions.map((session) => session.id)
     if (ids.length < 2) {
       alert("请先创建多个会话再切换")
       return
@@ -59,62 +116,40 @@ export default function MemoryPanel({
       return
     }
 
-    const userMsg: ChatMsg = { role: "user", content: input }
-    setSessions((prev) => ({
-      ...prev,
-      [currentId]: {
-        ...prev[currentId],
-        messages: [...prev[currentId].messages, userMsg],
-      },
-    }))
+    const message = input.trim()
+    const optimisticMessage: SessionMessage = {
+      id: `temp-${Date.now()}`,
+      role: "user",
+      content: message,
+      createdAt: new Date().toISOString(),
+    }
+
+    setCurrent((prev) =>
+      prev
+        ? {
+            ...prev,
+            messages: [...prev.messages, optimisticMessage],
+          }
+        : prev,
+    )
     setInput("")
     setLoading(true)
 
     try {
-      const history = sessions[currentId]?.messages ?? []
-      const apiMsgs: Message[] = [
-        ...history.map((m) => ({
-          role: m.role as "user" | "assistant",
-          content: m.content,
-        })),
-        { role: "user", content: input },
-      ]
-      const res = await callQwen(apiKey, {
-        messages: apiMsgs,
+      const session = await replyToStoredSession({
+        sessionId: currentId,
+        message,
         model,
-        system:
-          "你是一个有记忆的助手。请记住用户告诉你的所有信息，并在回答中自然地体现你记住了这些内容。",
-        maxTokens: 400,
       })
-      const reply = res.choices[0].message.content
-      setSessions((prev) => ({
-        ...prev,
-        [currentId]: {
-          ...prev[currentId],
-          messages: [
-            ...prev[currentId].messages,
-            { role: "assistant", content: reply },
-          ],
-        },
-      }))
-    } catch (e) {
-      const err = e instanceof Error ? e.message : String(e)
-      setSessions((prev) => ({
-        ...prev,
-        [currentId]: {
-          ...prev[currentId],
-          messages: [
-            ...prev[currentId].messages,
-            { role: "assistant", content: `⚠ 错误: ${err}` },
-          ],
-        },
-      }))
+      setCurrent(session)
+      updateSessionSummary(session)
+    } catch {
+      await loadSession(currentId)
     }
     setLoading(false)
   }
 
-  const current = currentId ? sessions[currentId] : null
-  const allIds = Object.keys(sessions)
+  const allIds = sessions.map((session) => session.id)
 
   return (
     <div
@@ -132,7 +167,6 @@ export default function MemoryPanel({
         <Tag color="green">阶段二</Tag>
       </PanelHeader>
 
-      {/* Thread bar */}
       <div
         style={{
           padding: "8px 20px",
@@ -163,23 +197,27 @@ export default function MemoryPanel({
           {currentId ?? "—"}
         </span>
         <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
-          {allIds.map((id) => (
+          {sessions.map((session) => (
             <button
-              key={id}
-              onClick={() => setCurrentId(id)}
+              key={session.id}
+              onClick={() => setCurrentId(session.id)}
               style={{
                 padding: "3px 10px",
                 borderRadius: 5,
                 fontSize: 11,
                 fontFamily: "var(--mono)",
-                border: `1px solid ${id === currentId ? "var(--accent)" : "var(--border2)"}`,
+                border: `1px solid ${session.id === currentId ? "var(--accent)" : "var(--border2)"}`,
                 background:
-                  id === currentId ? "var(--accent-dim)" : "var(--surface2)",
-                color: id === currentId ? "var(--accent)" : "var(--text2)",
+                  session.id === currentId
+                    ? "var(--accent-dim)"
+                    : "var(--surface2)",
+                color:
+                  session.id === currentId ? "var(--accent)" : "var(--text2)",
                 cursor: "pointer",
               }}
+              title={session.title}
             >
-              {id}
+              {session.id}
             </button>
           ))}
         </div>
@@ -210,7 +248,6 @@ export default function MemoryPanel({
         </span>
       </div>
 
-      {/* Chat area */}
       <div
         style={{
           flex: 1,
@@ -221,7 +258,18 @@ export default function MemoryPanel({
           gap: 12,
         }}
       >
-        {!current ? (
+        {booting ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "var(--text3)",
+              fontSize: 13,
+              marginTop: 40,
+            }}
+          >
+            正在加载会话...
+          </div>
+        ) : !current ? (
           <div
             style={{
               textAlign: "center",
@@ -241,12 +289,12 @@ export default function MemoryPanel({
               marginTop: 40,
             }}
           >
-            开始对话，Agent 会记住本会话中的所有信息
+            开始对话，消息会持久化保存到本地会话存储
           </div>
         ) : (
           current.messages.map((m, i) => (
             <div
-              key={i}
+              key={m.id ?? i}
               style={{
                 display: "flex",
                 gap: 10,
@@ -333,7 +381,6 @@ export default function MemoryPanel({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div
         style={{
           padding: "12px 20px",
@@ -351,7 +398,7 @@ export default function MemoryPanel({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault()
-              send()
+              void send()
             }
           }}
         />

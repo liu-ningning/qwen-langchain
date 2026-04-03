@@ -10,6 +10,7 @@
 - LangChain：`LCEL` 与 `Output Parsers` 已改为服务端真实执行
 - 兼容迁移：其余面板先通过服务端代理 DashScope，避免浏览器暴露密钥
 - 开发体验：前端自动刷新，服务端代码修改自动重启
+- 会话存储：`MemoryPanel` 的会话与消息会持久化到本地 JSON 文件
 
 开发态行为：
 
@@ -54,6 +55,10 @@ pnpm eslint
 http://localhost:5173
 ```
 
+## 会话存储
+
+服务端会将 MemoryPanel 的会话数据写入本地 `data/sessions.json`。该目录已加入 `.gitignore`，默认不提交到仓库。
+
 ## 配置 API Key
 
 访问 [阿里云 DashScope 控制台](https://dashscope.console.aliyun.com/apiKey) 获取 API Key，并写入 `.env`：
@@ -95,12 +100,16 @@ Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
 server/
 ├── index.ts                 # Express API + LangChain runtime
 ├── lib/
-│   └── runtime.ts           # 服务端运行时配置与模型工厂
+│   ├── runtime.ts           # 服务端运行时配置与模型工厂
+│   └── session-store.ts     # 本地 JSON 会话存储
 ├── routes/
 │   ├── api.ts               # API 路由汇总
 │   ├── chat.ts              # Chat / SSE 代理路由
 │   ├── health.ts            # 健康检查路由
-│   └── langchain.ts         # LangChain 相关路由
+│   ├── langchain.ts         # LangChain 相关路由
+│   ├── sessions.ts          # 会话存储与回复路由
+│   ├── chat/
+│   └── langchain/
 src/
 ├── lib/
 │   ├── qwen.ts               # 前端 API 客户端（调用本地 /api）

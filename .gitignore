@@ -43,3 +43,4 @@ dist-server
 
 # other
 .env
+data/
