@@ -40,24 +40,26 @@ app.use((req, res, next) => {
       DELETE: "\x1b[31m",
     }
     const color = methodColors[req.method] || "\x1b[0m"
-    setImmediate(() => {
-      const sanitizedUrl = req.originalUrl.replace(/[?&](token|password|secret)=[^&]*/g, '***')
-      if (sanitizedUrl.includes('/api/')) {
-        logger.info(
-          { method: req.method, url: sanitizedUrl, durationMs: `${duration}ms` },
-          `${color}[${req.method}]\x1b[0m ${sanitizedUrl} - ${duration}ms`
-        )
-      }
-    })
+
+    const sanitizedUrl = (req.originalUrl + (req.url.includes('#') ? '#' + req.url.split('#')[1] : ''))
+      .replace(/[?&](token|password|secret)=[^&]*/gi, '***')
+      .replace(/#.*/, '#***')
+
+    if (sanitizedUrl.includes('/api/')) {
+      logger.info(
+        { method: req.method, url: sanitizedUrl, durationMs: `${duration}ms` },
+        `${color}[${req.method}]\x1b[0m ${sanitizedUrl} - ${duration}ms`
+      )
+    }
 
     res.removeListener("finish", logRequest)
     res.removeListener("close", logRequest)
     res.removeListener("error", logRequest)
   }
 
-  res.on("finish", logRequest)
-  res.on("close", logRequest)
-  res.on("error", logRequest)
+  res.once("finish", logRequest)
+  res.once("close", logRequest)
+  res.once("error", logRequest)
 
   next()
 })
