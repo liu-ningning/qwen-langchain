@@ -26,11 +26,10 @@ app.use(express.json({ limit: "1mb" }))
 
 app.use((req, res, next) => {
   const start = Date.now()
-  let logged = false
 
   const logRequest = () => {
-    if (logged) return
-    logged = true
+    if (res.locals.logged) return
+    res.locals.logged = true
 
     const duration = Date.now() - start
     const methodColors: Record<string, string> = {
@@ -42,7 +41,7 @@ app.use((req, res, next) => {
     const color = methodColors[req.method] || "\x1b[0m"
 
     const sanitizedUrl = (req.originalUrl + (req.url.includes('#') ? '#' + req.url.split('#')[1] : ''))
-      .replace(/[?&](token|password|secret)=[^&]*/gi, '***')
+      .replace(/[?&](token|access_token|api_?key|jwt|password|secret|signature|sig)=[^&]*/gi, '***')
       .replace(/#.*/, '#***')
 
     if (sanitizedUrl.includes('/api/')) {
@@ -51,10 +50,6 @@ app.use((req, res, next) => {
         `${color}[${req.method}]\x1b[0m ${sanitizedUrl} - ${duration}ms`
       )
     }
-
-    res.removeListener("finish", logRequest)
-    res.removeListener("close", logRequest)
-    res.removeListener("error", logRequest)
   }
 
   res.once("finish", logRequest)
